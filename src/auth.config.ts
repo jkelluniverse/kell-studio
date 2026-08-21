@@ -5,6 +5,9 @@
 import type { NextAuthConfig } from "next-auth";
 
 export const authConfig = {
+  // Behind Railway's proxy the Host header is the public domain; trust it so
+  // Auth.js builds callback URLs correctly even if AUTH_URL is unset.
+  trustHost: true,
   session: { strategy: "jwt" },
   pages: { signIn: "/login" },
   providers: [], // filled in by src/auth.ts
