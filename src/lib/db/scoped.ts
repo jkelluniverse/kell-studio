@@ -7,7 +7,22 @@ import { prisma } from "./prisma";
 
 // Future prompts append model names here — adding the name is the only
 // change needed for a new model to be tenant-scoped.
-export const TENANT_SCOPED_MODELS: readonly Prisma.ModelName[] = ["User"];
+export const TENANT_SCOPED_MODELS: readonly Prisma.ModelName[] = [
+  "User",
+  "Client",
+  "Project",
+  "Phase",
+  "Milestone",
+  "Capture",
+  "Fact",
+  "FactCitation",
+  "Decision",
+  "Idea",
+  "Document",
+  "Reminder",
+  "AIThread",
+  "AIMessage",
+];
 
 /** Thrown when a caller passes a tenantId that conflicts with the scope. */
 export class TenantMismatchError extends Error {
@@ -208,6 +223,18 @@ export function forTenant(tenantId: string) {
       },
     },
   });
+}
+
+/** A tenant-scoped client, as returned by forTenant. */
+export type ScopedDb = ReturnType<typeof forTenant>;
+
+// KS-02 DECISION: with 14 scoped models, the KS-01 per-site cast for create
+// data became noise. scopedData() is the one blessed type-level stamp: the
+// runtime extension injects (and verifies) tenantId on create, so asserting
+// it here tells the generated types what is already true. Purely a type
+// assertion — no extension logic changed.
+export function scopedData<T extends object>(data: T): T & { tenantId: string } {
+  return data as T & { tenantId: string };
 }
 
 /** The single root tenant (Kell Systems itself). */

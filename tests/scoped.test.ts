@@ -12,6 +12,9 @@ import {
   assertTenantExists,
   TenantMismatchError,
 } from "../src/lib/db/scoped";
+import { scopedData } from "../src/lib/db/scoped";
+import { createFact } from "../src/lib/db/domain";
+import { wipeDatabase } from "./db-utils";
 
 let tenantA: { id: string };
 let tenantB: { id: string };
@@ -19,8 +22,7 @@ const A_EMAIL = "a-owner@example.com";
 const B_EMAIL = "b-owner@example.com";
 
 beforeAll(async () => {
-  await prisma.user.deleteMany();
-  await prisma.tenant.deleteMany();
+  await wipeDatabase(prisma);
 
   tenantA = await prisma.tenant.create({
     data: { slug: "tenant-a", name: "Tenant A", isRoot: true },
@@ -39,8 +41,7 @@ beforeAll(async () => {
 afterAll(async () => {
   // Leave the throwaway database empty — a stray isRoot tenant left behind
   // here would hijack getRootTenant() for anything else using this DB.
-  await prisma.user.deleteMany();
-  await prisma.tenant.deleteMany();
+  await wipeDatabase(prisma);
   await prisma.$disconnect();
 });
 
@@ -140,6 +141,46 @@ describe("helpers", () => {
   });
 });
 
+describe("domain tenant wall sweep (KS-02)", () => {
+  it("Client, Project, Capture, Fact rows stay confined to their tenant", async () => {
+    const dbA = forTenant(tenantA.id);
+    const dbB = forTenant(tenantB.id);
+
+    for (const [db, tag] of [
+      [dbA, "a"],
+      [dbB, "b"],
+    ] as const) {
+      const client = await db.client.create({
+        data: scopedData({ name: `Sweep Client ${tag}`, slug: `sweep-client-${tag}` }),
+      });
+      const project = await db.project.create({
+        data: scopedData({
+          clientId: client.id,
+          name: `Sweep Project ${tag}`,
+          slug: `sweep-project-${tag}`,
+        }),
+      });
+      const capture = await db.capture.create({
+        data: scopedData({ projectId: project.id, kind: "TEXT", body: `note ${tag}` }),
+      });
+      await createFact(db, {
+        projectId: project.id,
+        kind: "GOAL",
+        body: `fact ${tag}`,
+        citations: [{ captureId: capture.id }],
+      });
+    }
+
+    for (const model of ["client", "project", "capture", "fact"] as const) {
+      const rowsA = await (dbA[model].findMany as () => Promise<
+        { tenantId: string }[]
+      >)();
+      expect(rowsA).toHaveLength(1);
+      expect(rowsA[0]!.tenantId).toBe(tenantA.id);
+    }
+  });
+});
+
 describe("import boundary (ESLint)", () => {
   it("fails when a file under src/app/ imports @/lib/db/prisma", () => {
     const source = 'import { prisma } from "@/lib/db/prisma";\nconsole.log(prisma);\n';
@@ -156,6 +197,25 @@ describe("import boundary (ESLint)", () => {
     }
     expect(failed).toBe(true);
     expect(output).toContain("no-restricted-imports");
+  });
+
+  it("fails when a file under src/app/ calls .fact.create(", () => {
+    const source =
+      'declare const db: { fact: { create(args: object): void } };\ndb.fact.create({});\n';
+    let failed = false;
+    let output = "";
+    try {
+      output = execSync(
+        "pnpm exec eslint --stdin --stdin-filename src/app/__probe__.ts --no-warn-ignored",
+        { input: source, encoding: "utf8" }
+      );
+    } catch (err) {
+      failed = true;
+      output = (err as { stdout?: string }).stdout ?? "";
+    }
+    expect(failed).toBe(true);
+    expect(output).toContain("no-restricted-syntax");
+    expect(output).toContain("createFact()");
   });
 
   it("allows the same import inside src/lib/db/", () => {

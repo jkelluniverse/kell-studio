@@ -14,7 +14,21 @@ model Tenant {
   isRoot    Boolean  @default(false)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  users     User[]
+
+  users         User[]
+  clients       Client[]
+  projects      Project[]
+  phases        Phase[]
+  milestones    Milestone[]
+  captures      Capture[]
+  facts         Fact[]
+  factCitations FactCitation[]
+  decisions     Decision[]
+  ideas         Idea[]
+  documents     Document[]
+  reminders     Reminder[]
+  aiThreads     AIThread[]
+  aiMessages    AIMessage[]
 }
 
 model User {
@@ -34,4 +48,338 @@ enum UserRole {
   OWNER
   CLIENT       // reserved for v0.2, unused in v0.1
   COLLABORATOR // reserved for v0.3, unused in v0.1
+}
+
+// ---------------------------------------------------------------------------
+// KS-02 domain schema. Every model below is tenant-scoped: it carries
+// tenantId (with a real FK to Tenant, matching the KS-01 User pattern) and
+// is listed in TENANT_SCOPED_MODELS in src/lib/db/scoped.ts.
+// ---------------------------------------------------------------------------
+
+model Client {
+  id        String   @id @default(cuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  name         String
+  slug         String
+  contactName  String?
+  contactEmail String?
+  contactPhone String?
+  notes        String?
+
+  projects Project[]
+
+  @@unique([tenantId, slug])
+  @@index([tenantId])
+}
+
+model Project {
+  id        String   @id @default(cuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  clientId String
+  client   Client        @relation(fields: [clientId], references: [id])
+  name     String
+  slug     String
+  status   ProjectStatus @default(ACTIVE)
+  summary  String?
+
+  phases    Phase[]
+  captures  Capture[]
+  facts     Fact[]
+  decisions Decision[]
+  documents Document[]
+  threads   AIThread[]
+  // KS-02 DECISION: the spec's Project relation list omits ideas, but
+  // Idea.projectId has a relation and Prisma requires the back-relation
+  // field. Schema-only; nothing reads Project.ideas yet.
+  ideas     Idea[]
+
+  @@unique([tenantId, slug])
+  @@index([tenantId])
+  @@index([tenantId, status])
+}
+
+enum ProjectStatus {
+  ACTIVE
+  PAUSED
+  DONE
+  ARCHIVED
+}
+
+model Phase {
+  id        String   @id @default(cuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  projectId   String
+  project     Project     @relation(fields: [projectId], references: [id])
+  name        String
+  order       Int
+  status      PhaseStatus @default(NOT_STARTED)
+  blockedNote String? // required by setPhaseStatus when status is BLOCKED
+
+  milestones Milestone[]
+
+  @@unique([projectId, order])
+  @@index([tenantId])
+}
+
+enum PhaseStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  BLOCKED
+  DONE
+}
+
+model Milestone {
+  id        String   @id @default(cuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  phaseId String
+  phase   Phase          @relation(fields: [phaseId], references: [id])
+  title   String
+  dueOn   DateTime
+  doneAt  DateTime?
+  ownedBy MilestoneOwner @default(JACOB)
+
+  reminders Reminder[]
+
+  @@index([tenantId])
+  @@index([tenantId, dueOn])
+}
+
+enum MilestoneOwner {
+  JACOB
+  CLIENT
+}
+
+model Capture {
+  id        String   @id @default(cuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  projectId        String? // nullable: a capture may arrive before it's assigned
+  project          Project?         @relation(fields: [projectId], references: [id])
+  kind             CaptureKind
+  body             String
+  rawRef           String? // R2 key of original audio / raw email (KS-04)
+  transcriptStatus TranscriptStatus @default(NOT_APPLICABLE)
+  capturedAt       DateTime         @default(now())
+
+  citations FactCitation[]
+  decisions Decision[]
+
+  @@index([tenantId])
+  @@index([tenantId, projectId, capturedAt])
+}
+
+enum CaptureKind {
+  TEXT
+  VOICE
+  EMAIL
+}
+
+enum TranscriptStatus {
+  NOT_APPLICABLE
+  PENDING
+  DONE
+  FAILED
+}
+
+model Fact {
+  id        String   @id @default(cuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  projectId   String
+  project     Project    @relation(fields: [projectId], references: [id])
+  kind        FactKind
+  body        String
+  status      FactStatus @default(PROPOSED)
+  confirmedAt DateTime?
+
+  citations FactCitation[]
+
+  @@index([tenantId])
+  @@index([tenantId, projectId, status])
+}
+
+enum FactKind {
+  PREFERENCE
+  CONSTRAINT
+  VOCABULARY
+  FEAR
+  GOAL
+  TOOL
+  PERSON
+}
+
+enum FactStatus {
+  PROPOSED
+  CONFIRMED
+  RETIRED
+}
+
+model FactCitation {
+  id        String   @id @default(cuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  factId    String
+  fact      Fact    @relation(fields: [factId], references: [id], onDelete: Cascade)
+  captureId String
+  capture   Capture @relation(fields: [captureId], references: [id], onDelete: Restrict)
+  excerpt   String?
+
+  @@unique([factId, captureId])
+  @@index([tenantId])
+}
+
+model Decision {
+  id        String   @id @default(cuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id])
+  title     String
+  rationale String // required; recordDecision() enforces non-blank
+  decidedOn DateTime
+  captureId String?
+  capture   Capture? @relation(fields: [captureId], references: [id])
+
+  // Decisions are never edited — they're superseded. supersededById on the
+  // OLD decision points at the decision that replaced it.
+  supersededById String?
+  supersededBy   Decision?  @relation("DecisionSupersession", fields: [supersededById], references: [id])
+  supersedes     Decision[] @relation("DecisionSupersession")
+
+  @@index([tenantId])
+}
+
+model Idea {
+  id        String   @id @default(cuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  projectId   String? // null = studio-wide
+  project     Project?   @relation(fields: [projectId], references: [id])
+  title       String
+  body        String?
+  bringBackOn DateTime?
+  status      IdeaStatus @default(PARKED)
+
+  reminders Reminder[]
+
+  @@index([tenantId])
+  @@index([tenantId, bringBackOn])
+}
+
+enum IdeaStatus {
+  PARKED
+  REVIVED
+  DROPPED
+}
+
+model Document {
+  id        String   @id @default(cuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id])
+  title     String
+  r2Key     String? // nullable until the R2 adapter lands in KS-04
+  body      String? // inline markdown; createDocument() enforces r2Key-or-body
+  mimeType  String?
+
+  @@index([tenantId])
+}
+
+model Reminder {
+  id        String   @id @default(cuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  kind ReminderKind
+  // KS-02 DECISION: a reminder dies with its target (onDelete: Cascade on
+  // both optional relations). The default SetNull would leave a kind-tagged
+  // reminder with no target, which createReminder makes unrepresentable.
+  milestoneId String?
+  milestone   Milestone? @relation(fields: [milestoneId], references: [id], onDelete: Cascade)
+  ideaId      String?
+  idea        Idea?      @relation(fields: [ideaId], references: [id], onDelete: Cascade)
+  remindOn    DateTime
+  sentAt      DateTime?
+
+  @@index([tenantId])
+  @@index([tenantId, remindOn, sentAt])
+}
+
+enum ReminderKind {
+  MILESTONE
+  IDEA
+}
+
+model AIThread {
+  id        String   @id @default(cuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id])
+  title     String?
+
+  messages AIMessage[]
+
+  @@index([tenantId])
+}
+
+model AIMessage {
+  id        String   @id @default(cuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  threadId        String
+  thread          AIThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  role            AIRole
+  body            String
+  citedCaptureIds String[] // light by design — cites captures without join-table weight
+
+  @@index([tenantId])
+}
+
+enum AIRole {
+  USER
+  ASSISTANT
 }

@@ -35,6 +35,32 @@ export default [
           ],
         },
       ],
+      // KS-02: gated models are created only through the domain helpers in
+      // src/lib/db/domain.ts — createFact enforces citations, recordDecision
+      // enforces the rationale, createReminder the exactly-one-target rule.
+      // (createMany is blocked alongside create for all three; leaving it
+      // open would be the same hole with an s.)
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector:
+            "CallExpression[callee.property.name=/^(create|createMany)$/][callee.object.property.name='fact']",
+          message:
+            "Facts are created only via createFact() from @/lib/db — the citation gate is mandatory.",
+        },
+        {
+          selector:
+            "CallExpression[callee.property.name=/^(create|createMany)$/][callee.object.property.name='decision']",
+          message:
+            "Decisions are recorded only via recordDecision() from @/lib/db — the rationale gate is mandatory.",
+        },
+        {
+          selector:
+            "CallExpression[callee.property.name=/^(create|createMany)$/][callee.object.property.name='reminder']",
+          message:
+            "Reminders are created only via createReminder() from @/lib/db — it enforces the one-target rule.",
+        },
+      ],
     },
   },
 ];
