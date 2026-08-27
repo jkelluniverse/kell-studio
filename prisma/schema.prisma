@@ -29,6 +29,10 @@ model Tenant {
   reminders     Reminder[]
   aiThreads     AIThread[]
   aiMessages    AIMessage[]
+  intakeForms     IntakeForm[]
+  intakeItems     IntakeItem[]
+  intakeResponses IntakeResponse[]
+  intakeAnswers   IntakeAnswer[]
 }
 
 model User {
@@ -97,6 +101,7 @@ model Project {
   decisions Decision[]
   documents Document[]
   threads   AIThread[]
+  intakeForms IntakeForm[]
   // KS-02 DECISION: the spec's Project relation list omits ideas, but
   // Idea.projectId has a relation and Prisma requires the back-relation
   // field. Schema-only; nothing reads Project.ideas yet.
@@ -322,10 +327,123 @@ model Document {
   projectId String
   project   Project @relation(fields: [projectId], references: [id])
   title     String
-  r2Key     String? // nullable until the R2 adapter lands in KS-04
+  r2Key     String? // key into the R2 storage adapter
   body      String? // inline markdown; createDocument() enforces r2Key-or-body
   mimeType  String?
 
+  sizeBytes    Int?
+  originalName String?
+  source       DocumentSource @default(JACOB)
+  // Set when the file arrived via an intake submission. SetNull on response
+  // deletion: the file survives in the vault; only the intake link clears.
+  intakeResponseId String?
+  intakeResponse   IntakeResponse? @relation(fields: [intakeResponseId], references: [id], onDelete: SetNull)
+  // KS-04 DECISION: bare column (no relation) — the item link is a display
+  // hint, not an integrity constraint; a deleted draft item shouldn't be
+  // able to strand or block documents.
+  intakeItemId String?
+
+  @@index([tenantId])
+}
+
+enum DocumentSource {
+  JACOB
+  CLIENT_INTAKE
+  SYSTEM
+}
+
+model IntakeForm {
+  id        String   @id @default(cuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  projectId String
+  project   Project      @relation(fields: [projectId], references: [id])
+  title     String
+  intro     String? // plain-words paragraph the client sees
+  status    IntakeStatus @default(DRAFT)
+  token     String       @unique // unguessable, nanoid >= 24 chars
+  openedAt  DateTime?
+  closedAt  DateTime?
+
+  items     IntakeItem[]
+  responses IntakeResponse[]
+
+  @@index([tenantId])
+}
+
+enum IntakeStatus {
+  DRAFT
+  OPEN
+  CLOSED
+}
+
+model IntakeItem {
+  id        String   @id @default(cuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  formId   String
+  form     IntakeForm     @relation(fields: [formId], references: [id], onDelete: Cascade)
+  order    Int
+  kind     IntakeItemKind
+  prompt   String
+  required Boolean        @default(true)
+  choices  String[] // CHOICE only
+
+  answers IntakeAnswer[]
+
+  @@unique([formId, order])
+  @@index([tenantId])
+}
+
+enum IntakeItemKind {
+  SHORT_TEXT
+  LONG_TEXT
+  YES_NO
+  CHOICE
+  FILE_REQUEST
+}
+
+model IntakeResponse {
+  id        String   @id @default(cuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  formId          String
+  form            IntakeForm @relation(fields: [formId], references: [id])
+  submittedAt     DateTime? // null while in progress
+  respondentName  String?
+  respondentEmail String?
+
+  answers   IntakeAnswer[]
+  documents Document[]
+
+  @@index([tenantId])
+}
+
+model IntakeAnswer {
+  id        String   @id @default(cuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  responseId  String
+  response    IntakeResponse @relation(fields: [responseId], references: [id], onDelete: Cascade)
+  itemId      String
+  item        IntakeItem     @relation(fields: [itemId], references: [id])
+  valueText   String?
+  valueBool   Boolean?
+  valueChoice String?
+
+  @@unique([responseId, itemId])
   @@index([tenantId])
 }
 

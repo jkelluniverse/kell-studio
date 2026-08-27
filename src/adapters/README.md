@@ -6,11 +6,15 @@ interface, never the vendor SDK. Each adapter ships with a **fake
 implementation** for tests, so nothing in the test suite touches a real
 third-party service.
 
-No adapters exist yet. Coming in later prompts:
+Live now:
+
+- `storage/` — Cloudflare R2 (S3-compatible), presigned direct uploads (KS-04)
+- `email/` — Resend via REST (KS-04)
+
+Coming in later prompts:
 
 - AssemblyAI
 - Anthropic
 - Gmail
-- Resend
 - Stripe/Square
 - e-signature

@@ -7,6 +7,10 @@ export async function wipeDatabase(prisma: PrismaClient) {
   await prisma.aIMessage.deleteMany();
   await prisma.aIThread.deleteMany();
   await prisma.reminder.deleteMany();
+  await prisma.intakeAnswer.deleteMany();
+  await prisma.intakeResponse.deleteMany();
+  await prisma.intakeItem.deleteMany();
+  await prisma.intakeForm.deleteMany();
   await prisma.factCitation.deleteMany();
   await prisma.fact.deleteMany();
   await prisma.decision.deleteMany();

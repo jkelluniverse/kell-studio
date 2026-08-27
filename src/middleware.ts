@@ -12,7 +12,13 @@ export default auth((req) => {
   const { pathname } = req.nextUrl;
 
   const isPublic =
-    PUBLIC_PATHS.includes(pathname) || pathname.startsWith("/api/auth");
+    PUBLIC_PATHS.includes(pathname) ||
+    pathname.startsWith("/api/auth") ||
+    // Public intake: the unguessable token is the credential (KS-04).
+    pathname.startsWith("/i/") ||
+    pathname.startsWith("/api/intake/") ||
+    // Dev-only fake object store; the route 404s when R2 is configured.
+    pathname.startsWith("/api/dev-storage");
   if (isPublic) return NextResponse.next();
 
   if (!req.auth) {

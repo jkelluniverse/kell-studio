@@ -22,6 +22,10 @@ export const TENANT_SCOPED_MODELS: readonly Prisma.ModelName[] = [
   "Reminder",
   "AIThread",
   "AIMessage",
+  "IntakeForm",
+  "IntakeItem",
+  "IntakeResponse",
+  "IntakeAnswer",
 ];
 
 /** Thrown when a caller passes a tenantId that conflicts with the scope. */

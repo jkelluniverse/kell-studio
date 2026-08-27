@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { deleteProjectAction } from "@/app/(app)/actions";
+import { createIntakeFormAction } from "@/app/(app)/intake-actions";
 import { ActionButton } from "@/components/action-button";
+import { FileVault } from "@/components/file-vault";
 import { AddPhaseForm } from "@/components/add-phase-form";
 import { InlineSummary } from "@/components/inline-summary";
 import { PhaseCard } from "@/components/phase-card";
@@ -25,6 +27,11 @@ export default async function ProjectPage({
       phases: {
         orderBy: { order: "asc" },
         include: { milestones: { orderBy: { dueOn: "asc" } } },
+      },
+      documents: { orderBy: { createdAt: "desc" } },
+      intakeForms: {
+        orderBy: { createdAt: "desc" },
+        include: { responses: { select: { id: true } } },
       },
     },
   });
@@ -68,6 +75,61 @@ export default async function ProjectPage({
           </ul>
         )}
         <AddPhaseForm projectId={project.id} />
+      </section>
+
+      <section className="mt-10">
+        <FileVault
+          projectId={project.id}
+          documents={project.documents.map((d) => ({
+            id: d.id,
+            title: d.title,
+            originalName: d.originalName,
+            sizeBytes: d.sizeBytes,
+            mimeType: d.mimeType,
+            source: d.source,
+            createdAt: d.createdAt,
+          }))}
+        />
+      </section>
+
+      <section className="mt-10">
+        <div className="flex items-center justify-between">
+          <h2 className="font-ui text-xs uppercase tracking-wide text-navy/50">
+            Intake
+          </h2>
+          <ActionButton
+            action={createIntakeFormAction.bind(null, project.id)}
+            label="New intake"
+            className="rounded bg-emerald px-4 py-2 font-ui text-sm text-white"
+          />
+        </div>
+        {project.intakeForms.length === 0 ? (
+          <p className="mt-3 font-body text-navy">
+            No intakes yet. Create one to ask a client for answers and files.
+          </p>
+        ) : (
+          <ul className="mt-3 divide-y divide-navy/10">
+            {project.intakeForms.map((form) => (
+              <li key={form.id}>
+                <Link
+                  href={`/projects/${project.id}/intake/${form.id}`}
+                  className="flex items-center justify-between py-3"
+                >
+                  <span className="font-ui text-sm text-navy">{form.title}</span>
+                  <span className="font-body text-xs text-navy/60">
+                    {form.status === "DRAFT"
+                      ? "Draft"
+                      : form.status === "OPEN"
+                        ? "Open"
+                        : "Closed"}{" "}
+                    · {form.responses.length} response
+                    {form.responses.length === 1 ? "" : "s"}
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
 
       <section className="mt-10">

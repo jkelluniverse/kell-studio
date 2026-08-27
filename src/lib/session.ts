@@ -12,3 +12,11 @@ export async function requireScopedDb() {
   if (!tenantId) redirect("/login");
   return forTenant(tenantId);
 }
+
+/** Same, when the caller also needs the tenantId (e.g. storage keys). */
+export async function requireSession() {
+  const session = await auth();
+  const tenantId = session?.user?.tenantId;
+  if (!tenantId) redirect("/login");
+  return { db: forTenant(tenantId), tenantId };
+}

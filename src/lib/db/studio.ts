@@ -175,12 +175,20 @@ export async function updateProjectSummary(
 export async function deleteProject(db: ScopedDb, id: string) {
   const project = await db.project.findUnique({
     where: { id },
-    include: { phases: { select: { id: true } } },
+    include: {
+      phases: { select: { id: true } },
+      documents: { select: { id: true } },
+      intakeForms: { select: { id: true } },
+    },
   });
   if (!project) throw new NotFoundError("Project");
-  if (project.phases.length > 0) {
+  if (
+    project.phases.length > 0 ||
+    project.documents.length > 0 ||
+    project.intakeForms.length > 0
+  ) {
     throw new DomainRuleError(
-      "This project still has build stages — delete those first."
+      "This project still has build stages, files, or intakes — delete those first."
     );
   }
   return db.project.delete({ where: { id } });
