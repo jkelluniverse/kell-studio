@@ -64,6 +64,7 @@ model Client {
   updatedAt DateTime @updatedAt
 
   name         String
+  status       ClientStatus @default(PROSPECT)
   slug         String
   contactName  String?
   contactEmail String?
@@ -106,6 +107,12 @@ model Project {
   @@index([tenantId, status])
 }
 
+enum ClientStatus {
+  PROSPECT
+  ACTIVE
+  PAST
+}
+
 enum ProjectStatus {
   ACTIVE
   PAUSED
@@ -124,8 +131,9 @@ model Phase {
   project     Project     @relation(fields: [projectId], references: [id])
   name        String
   order       Int
-  status      PhaseStatus @default(NOT_STARTED)
-  blockedNote String? // required by setPhaseStatus when status is BLOCKED
+  status          PhaseStatus @default(NOT_STARTED)
+  blockedNote     String? // required by setPhaseStatus when status is BLOCKED
+  visibleToClient Boolean     @default(true) // KS-08's portal reads this
 
   milestones Milestone[]
 
@@ -153,6 +161,7 @@ model Milestone {
   dueOn   DateTime
   doneAt  DateTime?
   ownedBy MilestoneOwner @default(JACOB)
+  note    String? // one plain-text line of context
 
   reminders Reminder[]
 

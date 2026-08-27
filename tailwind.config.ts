@@ -11,6 +11,7 @@ const config: Config = {
         cream: "#FAF7F0",
         navy: "#142A3B",
         emerald: "#0C8A5B",
+        rust: "#A6432D",
       },
       fontFamily: {
         display: ["var(--font-fraunces)", "serif"],

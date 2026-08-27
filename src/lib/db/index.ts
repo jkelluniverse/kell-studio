@@ -14,3 +14,22 @@ export {
   RationaleRequiredError,
   DomainRuleError,
 } from "./domain";
+export {
+  slugify,
+  createClient,
+  updateClient,
+  deleteClient,
+  createProject,
+  setProjectStatus,
+  updateProjectSummary,
+  deleteProject,
+  addPhase,
+  renamePhase,
+  setPhaseVisibility,
+  movePhase,
+  deletePhase,
+  addMilestone,
+  setMilestoneDone,
+  deleteMilestone,
+  NotFoundError,
+} from "./studio";
