@@ -17,6 +17,8 @@ export default auth((req) => {
     // Public intake: the unguessable token is the credential (KS-04).
     pathname.startsWith("/i/") ||
     pathname.startsWith("/api/intake/") ||
+    // Cron heartbeat; guarded by CRON_SECRET inside the route.
+    pathname === "/api/jobs/tick" ||
     // Dev-only fake object store; the route 404s when R2 is configured.
     pathname.startsWith("/api/dev-storage");
   if (isPublic) return NextResponse.next();

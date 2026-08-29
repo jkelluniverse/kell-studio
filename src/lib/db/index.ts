@@ -61,3 +61,15 @@ export {
   presignIntakeUpload,
   submitIntake,
 } from "./intake";
+export {
+  createNoteCapture,
+  createVoiceCapture,
+  tick,
+  processCapture,
+  validateProposals,
+  retryCapture,
+  proposedFactCount,
+  discardProposedFact,
+  editProposedFact,
+  unretireFact,
+} from "./captures";

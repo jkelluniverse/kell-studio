@@ -186,13 +186,16 @@ model Capture {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  projectId        String? // nullable: a capture may arrive before it's assigned
-  project          Project?         @relation(fields: [projectId], references: [id])
-  kind             CaptureKind
-  body             String
-  rawRef           String? // R2 key of original audio / raw email (KS-04)
-  transcriptStatus TranscriptStatus @default(NOT_APPLICABLE)
-  capturedAt       DateTime         @default(now())
+  projectId String? // nullable: a capture may arrive before it's assigned
+  project   Project?      @relation(fields: [projectId], references: [id])
+  kind      CaptureKind
+  body      String
+  rawRef    String? // R2 key of original audio (KS-04 presigned path)
+  status    CaptureStatus @default(READY)
+  // Provider job id while transcribing; plain-English note when FAILED.
+  transcriptJobId String?
+  failureNote     String?
+  capturedAt      DateTime @default(now())
 
   citations FactCitation[]
   decisions Decision[]
@@ -207,9 +210,11 @@ enum CaptureKind {
   EMAIL
 }
 
-enum TranscriptStatus {
-  NOT_APPLICABLE
-  PENDING
+enum CaptureStatus {
+  READY
+  TRANSCRIBING
+  EXTRACTING
+  REVIEW
   DONE
   FAILED
 }

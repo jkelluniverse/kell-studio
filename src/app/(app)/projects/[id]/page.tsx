@@ -5,6 +5,8 @@ import { createIntakeFormAction } from "@/app/(app)/intake-actions";
 import { ActionButton } from "@/components/action-button";
 import { FileVault } from "@/components/file-vault";
 import { AddPhaseForm } from "@/components/add-phase-form";
+import { CapturesSection } from "@/components/captures-section";
+import { FactsSection } from "@/components/facts-section";
 import { InlineSummary } from "@/components/inline-summary";
 import { PhaseCard } from "@/components/phase-card";
 import { ProjectStatusSelect } from "@/components/project-status-select";
@@ -15,10 +17,14 @@ import { requireScopedDb } from "@/lib/session";
 // this page — keep each section a sibling block under the header.
 export default async function ProjectPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ retired?: string }>;
 }) {
   const { id } = await params;
+  const { retired } = await searchParams;
+  const showRetired = retired === "1";
   const db = await requireScopedDb();
   const project = await db.project.findUnique({
     where: { id },
@@ -29,6 +35,12 @@ export default async function ProjectPage({
         include: { milestones: { orderBy: { dueOn: "asc" } } },
       },
       documents: { orderBy: { createdAt: "desc" } },
+      captures: { orderBy: { capturedAt: "desc" }, take: 20 },
+      facts: {
+        where: { status: showRetired ? { in: ["CONFIRMED", "RETIRED"] } : "CONFIRMED" },
+        orderBy: [{ kind: "asc" }, { confirmedAt: "desc" }],
+        include: { citations: { select: { id: true, excerpt: true, captureId: true } } },
+      },
       intakeForms: {
         orderBy: { createdAt: "desc" },
         include: { responses: { select: { id: true } } },
@@ -75,6 +87,18 @@ export default async function ProjectPage({
           </ul>
         )}
         <AddPhaseForm projectId={project.id} />
+      </section>
+
+      <section className="mt-10">
+        <CapturesSection projectId={project.id} captures={project.captures} />
+      </section>
+
+      <section className="mt-10">
+        <FactsSection
+          projectId={project.id}
+          facts={project.facts}
+          showRetired={showRetired}
+        />
       </section>
 
       <section className="mt-10">

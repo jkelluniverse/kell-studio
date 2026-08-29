@@ -28,6 +28,13 @@ export const ALLOWED_MIME: Record<string, string> = {
   "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": ".xlsx",
   "application/vnd.ms-powerpoint": ".ppt",
   "application/vnd.openxmlformats-officedocument.presentationml.presentation": ".pptx",
+  // KS-05 DECISION: audio joins the allowlist so voice memos ride the same
+  // presigned path as vault files (and the vault gains audio for free).
+  "audio/webm": ".webm",
+  "audio/mp4": ".m4a",
+  "audio/mpeg": ".mp3",
+  "audio/wav": ".wav",
+  "audio/ogg": ".ogg",
   "text/plain": ".txt",
   "text/markdown": ".md",
   "text/csv": ".csv",
