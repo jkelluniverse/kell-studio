@@ -8,10 +8,12 @@ import { AddPhaseForm } from "@/components/add-phase-form";
 import { CapturesSection } from "@/components/captures-section";
 import { FactsSection } from "@/components/facts-section";
 import { InlineSummary } from "@/components/inline-summary";
+import { MessagesSection } from "@/components/messages-section";
 import { PhaseCard } from "@/components/phase-card";
 import { ProjectStatusSelect } from "@/components/project-status-select";
 import { SIGNATURE } from "@/lib/brand";
-import { requireScopedDb } from "@/lib/session";
+import { markThreadRead, projectThread } from "@/lib/db";
+import { requireSession } from "@/lib/session";
 
 // Later prompts append sections (captures, decisions, documents, AI) to
 // this page — keep each section a sibling block under the header.
@@ -25,7 +27,10 @@ export default async function ProjectPage({
   const { id } = await params;
   const { retired } = await searchParams;
   const showRetired = retired === "1";
-  const db = await requireScopedDb();
+  const { db, userId } = await requireSession();
+  // The client's messages count as read once Jacob has the page open.
+  await markThreadRead(db, id, { role: "OWNER" });
+  const messages = await projectThread(db, id);
   const project = await db.project.findUnique({
     where: { id },
     include: {
@@ -59,7 +64,15 @@ export default async function ProjectPage({
       </Link>
       <div className="mt-1 flex flex-wrap items-center justify-between gap-3">
         <h1 className="font-display text-3xl text-navy">{project.name}</h1>
-        <ProjectStatusSelect projectId={project.id} status={project.status} />
+        <div className="flex items-center gap-3">
+          <Link
+            href={`/portal/preview/${project.id}`}
+            className="font-ui text-sm text-emerald underline underline-offset-2"
+          >
+            View as client
+          </Link>
+          <ProjectStatusSelect projectId={project.id} status={project.status} />
+        </div>
       </div>
 
       <section className="mt-5">
@@ -111,8 +124,18 @@ export default async function ProjectPage({
             sizeBytes: d.sizeBytes,
             mimeType: d.mimeType,
             source: d.source,
+            visibleToClient: d.visibleToClient,
             createdAt: d.createdAt,
           }))}
+        />
+      </section>
+
+      <section className="mt-10">
+        <MessagesSection
+          projectId={project.id}
+          clientName={project.client.name}
+          messages={messages}
+          ownerUserId={userId}
         />
       </section>
 

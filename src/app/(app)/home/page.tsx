@@ -2,7 +2,7 @@ import Link from "next/link";
 import { SIGNATURE } from "@/lib/brand";
 import { requireScopedDb } from "@/lib/session";
 
-// Placeholder screen — KS-06 replaces it. Keep under 50 lines.
+// Placeholder screen — the Where-I-Left-Off prompt replaces it. Keep under 50 lines.
 export default async function HomePage() {
   const db = await requireScopedDb();
   const projects = await db.project.findMany({

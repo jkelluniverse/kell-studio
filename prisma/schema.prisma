@@ -33,25 +33,59 @@ model Tenant {
   intakeItems     IntakeItem[]
   intakeResponses IntakeResponse[]
   intakeAnswers   IntakeAnswer[]
+  loginTokens     LoginToken[]
+  projectMessages ProjectMessage[]
 }
 
 model User {
-  id           String   @id @default(cuid())
-  tenantId     String
-  tenant       Tenant   @relation(fields: [tenantId], references: [id])
-  email        String   @unique
-  passwordHash String
+  id       String   @id @default(cuid())
+  tenantId String
+  tenant   Tenant   @relation(fields: [tenantId], references: [id])
+  email    String   @unique
+  // KS-06 DECISION: nullable — CLIENT users never have a password (§1), and
+  // a row with no hash is the honest shape for that; a random unusable hash
+  // would be a fake. authorize() treats null as "cannot sign in by password".
+  passwordHash String?
   role         UserRole @default(OWNER)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  name         String?
+  // Set for CLIENT users (createPortalUser enforces it); null for the owner.
+  clientId     String?
+  client       Client?   @relation(fields: [clientId], references: [id])
+  disabledAt   DateTime? // revoked portal access; sessions die at middleware
+  lastSignInAt DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  loginTokens LoginToken[]
+  messages    ProjectMessage[]
 
   @@index([tenantId])
+  @@index([clientId])
 }
 
 enum UserRole {
   OWNER
-  CLIENT       // reserved for v0.2, unused in v0.1
+  CLIENT       // portal users (KS-06)
   COLLABORATOR // reserved for v0.3, unused in v0.1
+}
+
+// One-time portal sign-in token (KS-06). Only the SHA-256 of the raw token is
+// stored; the raw value exists in the email link and nowhere else.
+model LoginToken {
+  id        String   @id @default(cuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+
+  @@index([tenantId])
+  @@index([userId])
 }
 
 // ---------------------------------------------------------------------------
@@ -75,7 +109,8 @@ model Client {
   contactPhone String?
   notes        String?
 
-  projects Project[]
+  projects    Project[]
+  portalUsers User[]
 
   @@unique([tenantId, slug])
   @@index([tenantId])
@@ -106,6 +141,7 @@ model Project {
   // Idea.projectId has a relation and Prisma requires the back-relation
   // field. Schema-only; nothing reads Project.ideas yet.
   ideas     Idea[]
+  messages  ProjectMessage[]
 
   @@unique([tenantId, slug])
   @@index([tenantId])
@@ -137,8 +173,8 @@ model Phase {
   name        String
   order       Int
   status          PhaseStatus @default(NOT_STARTED)
-  blockedNote     String? // required by setPhaseStatus when status is BLOCKED
-  visibleToClient Boolean     @default(true) // KS-08's portal reads this
+  blockedNote     String? // required by setPhaseStatus when status is BLOCKED; never leaves the internal side
+  visibleToClient Boolean     @default(true) // the portal (KS-06) reads this
 
   milestones Milestone[]
 
@@ -339,6 +375,10 @@ model Document {
   sizeBytes    Int?
   originalName String?
   source       DocumentSource @default(JACOB)
+  // Portal visibility (KS-06). registerUpload defaults it from the source:
+  // a client's own files (CLIENT_INTAKE / CLIENT_PORTAL) start visible,
+  // JACOB / SYSTEM start hidden until toggled.
+  visibleToClient Boolean @default(false)
   // Set when the file arrived via an intake submission. SetNull on response
   // deletion: the file survives in the vault; only the intake link clears.
   intakeResponseId String?
@@ -354,7 +394,32 @@ model Document {
 enum DocumentSource {
   JACOB
   CLIENT_INTAKE
+  CLIENT_PORTAL
   SYSTEM
+}
+
+// The project message thread (KS-06): one thread per project, both sides
+// post, nothing is edited or deleted — it's a record.
+model ProjectMessage {
+  id        String   @id @default(cuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id])
+  authorId  String
+  author    User    @relation(fields: [authorId], references: [id])
+  body      String
+  readAt    DateTime? // set when the other side loads the thread
+  // KS-06 DECISION: the 10-minute notice batch guard reads this column
+  // instead of in-memory state, so it holds across restarts and is testable:
+  // set when a notice email went out for this message.
+  noticedAt DateTime?
+
+  @@index([tenantId])
+  @@index([tenantId, projectId, createdAt])
 }
 
 model IntakeForm {

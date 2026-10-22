@@ -107,12 +107,20 @@ export async function updateClient(db: ScopedDb, id: string, input: ClientInput)
 export async function deleteClient(db: ScopedDb, id: string) {
   const client = await db.client.findUnique({
     where: { id },
-    include: { projects: { select: { id: true } } },
+    include: {
+      projects: { select: { id: true } },
+      portalUsers: { select: { id: true } },
+    },
   });
   if (!client) throw new NotFoundError("Client");
   if (client.projects.length > 0) {
     throw new DomainRuleError(
       "This client still has projects — delete or move those first."
+    );
+  }
+  if (client.portalUsers.length > 0) {
+    throw new DomainRuleError(
+      "This client still has portal users — remove those first."
     );
   }
   return db.client.delete({ where: { id } });

@@ -100,6 +100,11 @@ export interface RegisterUploadInput extends UploadRequest {
   intakeItemId?: string;
 }
 
+/** A client's own files start visible to them; Jacob's start hidden. */
+export function defaultVisibility(source: DocumentSource): boolean {
+  return source === "CLIENT_INTAKE" || source === "CLIENT_PORTAL";
+}
+
 /** Records the Document row after the browser finished its direct upload. */
 export async function registerUpload(
   db: ScopedDb,
@@ -113,6 +118,7 @@ export async function registerUpload(
   const project = await db.project.findUnique({ where: { id: input.projectId } });
   if (!project) throw new NotFoundError("Project");
   assertUploadAllowed(input.mimeType, input.sizeBytes);
+  const source = input.source ?? "JACOB";
   return db.document.create({
     data: scopedData({
       projectId: input.projectId,
@@ -121,11 +127,22 @@ export async function registerUpload(
       r2Key: input.key,
       mimeType: input.mimeType,
       sizeBytes: input.sizeBytes,
-      source: input.source ?? "JACOB",
+      source,
+      visibleToClient: defaultVisibility(source),
       intakeResponseId: input.intakeResponseId ?? null,
       intakeItemId: input.intakeItemId ?? null,
     }),
   });
+}
+
+export async function setDocumentVisibility(
+  db: ScopedDb,
+  id: string,
+  visibleToClient: boolean
+) {
+  const doc = await db.document.findUnique({ where: { id } });
+  if (!doc) throw new NotFoundError("File");
+  return db.document.update({ where: { id }, data: { visibleToClient } });
 }
 
 export async function renameDocument(db: ScopedDb, id: string, title: string) {

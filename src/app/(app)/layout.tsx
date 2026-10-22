@@ -1,17 +1,16 @@
 import Link from "next/link";
 import { cookies } from "next/headers";
-import { redirect } from "next/navigation";
-import { auth, signOut } from "@/auth";
+import { signOut } from "@/auth";
 import { NAME_STUDIO } from "@/lib/brand";
-import { forTenant, proposedFactCount } from "@/lib/db";
+import { proposedFactCount } from "@/lib/db";
+import { requireScopedDb } from "@/lib/session";
 import { CaptureFab } from "@/components/capture-fab";
 
 export default async function AppLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
-  const session = await auth();
-  if (!session?.user?.tenantId) redirect("/login");
-  const db = forTenant(session.user.tenantId);
+  // Owner-only: requireScopedDb answers a CLIENT session with not-found.
+  const db = await requireScopedDb();
 
   const [projects, reviewCount, jar] = await Promise.all([
     db.project.findMany({

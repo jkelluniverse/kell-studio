@@ -26,6 +26,8 @@ export const TENANT_SCOPED_MODELS: readonly Prisma.ModelName[] = [
   "IntakeItem",
   "IntakeResponse",
   "IntakeAnswer",
+  "LoginToken",
+  "ProjectMessage",
 ];
 
 /** Thrown when a caller passes a tenantId that conflicts with the scope. */

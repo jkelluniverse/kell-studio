@@ -2,6 +2,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { deleteClientAction } from "@/app/(app)/actions";
 import { ActionButton } from "@/components/action-button";
+import { PortalAccess } from "@/components/portal-access";
+import { listPortalUsers } from "@/lib/db";
 import { requireScopedDb } from "@/lib/session";
 import { PHASE_LABEL, fmtDate } from "@/lib/format";
 
@@ -27,6 +29,7 @@ export default async function ClientPage({
     },
   });
   if (!client) notFound();
+  const portalUsers = await listPortalUsers(db, client.id);
 
   return (
     <div>
@@ -112,15 +115,29 @@ export default async function ClientPage({
         </ul>
       )}
 
+      <section className="mt-10">
+        <PortalAccess
+          clientId={client.id}
+          users={portalUsers.map((u) => ({
+            id: u.id,
+            name: u.name,
+            email: u.email,
+            lastSignInAt: u.lastSignInAt,
+            disabledAt: u.disabledAt,
+            messageCount: u._count.messages,
+          }))}
+        />
+      </section>
+
       <div className="mt-10">
-        {client.projects.length === 0 ? (
+        {client.projects.length === 0 && portalUsers.length === 0 ? (
           <ActionButton
             action={deleteClientAction.bind(null, client.id)}
             label="Delete client"
           />
         ) : (
           <p className="font-body text-xs text-navy/50">
-            This client can be deleted once it has no projects.
+            This client can be deleted once it has no projects and no portal users.
           </p>
         )}
       </div>

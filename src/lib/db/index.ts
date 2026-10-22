@@ -44,6 +44,8 @@ export {
   renameDocument,
   deleteDocument,
   documentUrl,
+  defaultVisibility,
+  setDocumentVisibility,
 } from "./files";
 export {
   createIntakeForm,
@@ -73,3 +75,43 @@ export {
   editProposedFact,
   unretireFact,
 } from "./captures";
+export {
+  LOGIN_TOKEN_MINUTES,
+  hashToken,
+  listPortalUsers,
+  createPortalUser,
+  issueLoginToken,
+  invitePortalUser,
+  resendPortalLink,
+  revokePortalUser,
+  restorePortalUser,
+  removePortalUser,
+  requestLoginLink,
+  peekLoginToken,
+  consumeLoginToken,
+  activePortalUser,
+} from "./portal-auth";
+export {
+  PORTAL_PHASE_LABEL,
+  PORTAL_PROJECT_LABEL,
+  NOTICE_BATCH_MINUTES,
+  MAX_MESSAGE_CHARS,
+  toPortalPhaseStatus,
+  progressLine,
+  portalProjects,
+  portalProject,
+  projectThread,
+  portalPrepareUpload,
+  portalRegisterUpload,
+  portalDocumentUrl,
+  postProjectMessage,
+  markThreadRead,
+} from "./portal";
+export type {
+  PortalProjectCard,
+  PortalProjectPayload,
+  PortalPhase,
+  PortalActionItem,
+  PortalFile,
+  ThreadMessage,
+} from "./portal";

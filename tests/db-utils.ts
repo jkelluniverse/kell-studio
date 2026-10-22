@@ -4,6 +4,8 @@ import type { PrismaClient } from "@prisma/client";
 // both suites wipe before and after so a stray isRoot tenant can never leak
 // between files.
 export async function wipeDatabase(prisma: PrismaClient) {
+  await prisma.projectMessage.deleteMany();
+  await prisma.loginToken.deleteMany();
   await prisma.aIMessage.deleteMany();
   await prisma.aIThread.deleteMany();
   await prisma.reminder.deleteMany();

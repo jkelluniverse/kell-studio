@@ -19,3 +19,5 @@ export const SIGNATURE = "Built to subtract.";
 // never hardcode the words.
 export const NAME_STUDIO = "Studio";
 export const NAME_CLIENT_PORTAL = "Client Portal";
+// How the owner is named in client-facing copy and threads (KS-06).
+export const NAME_OWNER = "Jacob";

@@ -8,6 +8,7 @@ import {
   prepareUploadAction,
   registerUploadAction,
 } from "@/app/(app)/file-actions";
+import { setDocumentVisibilityAction } from "@/app/(app)/portal-admin-actions";
 import { fmtBytes, fmtDate } from "@/lib/format";
 import { renameDocumentAction } from "@/app/(app)/file-actions";
 
@@ -17,13 +18,15 @@ export interface DocRow {
   originalName: string | null;
   sizeBytes: number | null;
   mimeType: string | null;
-  source: "JACOB" | "CLIENT_INTAKE" | "SYSTEM";
+  source: "JACOB" | "CLIENT_INTAKE" | "CLIENT_PORTAL" | "SYSTEM";
+  visibleToClient: boolean;
   createdAt: Date;
 }
 
 const SOURCE_CHIP: Record<DocRow["source"], string> = {
   JACOB: "You",
   CLIENT_INTAKE: "Client",
+  CLIENT_PORTAL: "Client",
   SYSTEM: "System",
 };
 
@@ -223,6 +226,32 @@ function FileRow({ doc }: { doc: DocRow }) {
             {SOURCE_CHIP[doc.source]}
           </span>
         </p>
+        <label className="mt-1 flex items-center gap-1.5 font-ui text-xs text-navy/70">
+          <input
+            type="checkbox"
+            checked={doc.visibleToClient}
+            disabled={pending}
+            onChange={(e) =>
+              startTransition(async () => {
+                const result = await setDocumentVisibilityAction(doc.id, e.target.checked);
+                if (result.error) setError(result.error);
+                else router.refresh();
+              })
+            }
+            className="accent-emerald"
+          />
+          <svg
+            viewBox="0 0 24 24"
+            className="h-4 w-4"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+          >
+            <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z" />
+            <circle cx="12" cy="12" r="3" />
+          </svg>
+          Client sees this
+        </label>
         {error && <p className="font-body text-xs text-rust">{error}</p>}
       </div>
       <button
